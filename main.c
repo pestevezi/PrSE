@@ -2,48 +2,47 @@
 
 void delay(void)
 {
-	volatile int i;
+  volatile int i;
 
-	for (i = 0; i < 1000000; i++);
+  for (i = 0; i < 1000000; i++);
 }
 
 void led_green_init()
 {
-	SIM->COPC = 0;
-	SIM->SCGC5 |= SIM_SCGC5_PORTD_MASK;
-	PORTD->PCR[5] = PORT_PCR_MUX(1);
-	GPIOD->PDDR |= (1 << 5);
-	GPIOD->PSOR = (1 << 5);
+  SIM->COPC = 0;
+  SIM->SCGC5 |= SIM_SCGC5_PORTD_MASK;
+  PORTD->PCR[5] = PORT_PCR_MUX(1);
+  GPIOD->PDDR |= (1 << 5);
+  GPIOD->PSOR = (1 << 5);
 }
 
 void led_green_toggle()
 {
-	GPIOD->PTOR = (1 << 5);
+  GPIOD->PTOR = (1 << 5);
 }
 
 void led_red_init()
 {
-	SIM->COPC = 0;
-	SIM->SCGC5 |= SIM_SCGC5_PORTE_MASK;
-	PORTE->PCR[29] = PORT_PCR_MUX(1);
-	GPIOE->PDDR |= (1 << 29);
-	GPIOE->PSOR = (1 << 29);
+  SIM->COPC = 0;
+  SIM->SCGC5 |= SIM_SCGC5_PORTE_MASK;
+  PORTE->PCR[29] = PORT_PCR_MUX(1);
+  GPIOE->PDDR |= (1 << 29);
+  GPIOE->PSOR = (1 << 29);
 }
 
 void led_red_toggle(void)
 {
-	GPIOE->PTOR = (1 << 29);
+  GPIOE->PTOR = (1 << 29);
 }
 
 int main(void)
 {
-	led_green_init();
+  led_green_init();
 
-	while (1) {
-		led_green_toggle();
-		delay();
-	}
+  while (1) {
+    led_green_toggle();
+    delay();
+  }
 
-	return 0;
+  return 0;
 }
-
