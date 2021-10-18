@@ -3,8 +3,11 @@
 PREFIX=arm-none-eabi-
 
 ARCHFLAGS=-mthumb -mcpu=cortex-m0plus
-CFLAGS=-I./includes -g -O2 -Wall -Werror
-LDFLAGS=--specs=nano.specs -Wl,--gc-sections,-Map,$(TARGET).map,-Tlink.ld
+COMMONFLAGS=-g -Og -Wall -Werror $(ARCHFLAGS)
+
+CFLAGS=-I./includes $(COMMONFLAGS)
+LDFLAGS=$(COMMONFLAGS) --specs=nano.specs -Wl,--gc-sections,-Map,$(TARGET).map,-Tlink.ld
+LDLIBS=
 
 CC=$(PREFIX)gcc
 LD=$(PREFIX)gcc
@@ -26,11 +29,8 @@ bin: $(TARGET).bin
 clean:
 	$(RM) $(TARGET).srec $(TARGET).elf $(TARGET).bin $(TARGET).map $(OBJ)
 
-%.o: %.c
-	$(CC) -c $(ARCHFLAGS) $(CFLAGS) -o $@ $<
-
 $(TARGET).elf: $(OBJ)
-	$(LD) $(LDFLAGS) -o $@ $(OBJ)
+	$(LD) $(LDFLAGS) $(OBJ) $(LDLIBS) -o $@
 
 %.srec: %.elf
 	$(OBJCOPY) -O srec $< $@
