@@ -1,5 +1,9 @@
 #include "MKL46Z4.h"
 
+// LED (RG)
+// LED_GREEN = PTD5
+// LED_RED = PTE29
+
 void delay(void)
 {
   volatile int i;
@@ -7,6 +11,7 @@ void delay(void)
   for (i = 0; i < 1000000; i++);
 }
 
+// LED_GREEN = PTD5
 void led_green_init()
 {
   SIM->COPC = 0;
@@ -21,6 +26,7 @@ void led_green_toggle()
   GPIOD->PTOR = (1 << 5);
 }
 
+// LED_RED = PTE29
 void led_red_init()
 {
   SIM->COPC = 0;
