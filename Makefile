@@ -42,4 +42,4 @@ size:
 	$(SIZE) $(TARGET).elf
 
 flash: all
-	openocd -f openocd.cfg -c "program main.elf verify reset exit"
+	openocd -f openocd.cfg -c "program $(TARGET).elf verify reset exit"
