@@ -44,11 +44,15 @@ void led_red_toggle(void)
 int main(void)
 {
   led_green_init();
+  led_red_init();
 
   while (1) {
     led_green_toggle();
     delay();
+    led_red_toggle();
   }
 
   return 0;
 }
+ 
+
