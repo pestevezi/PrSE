@@ -1,6 +1,5 @@
 #include "MKL46Z4.h"
 #include <stdbool.h>
-uint8_t state;//0 = 00, 1 = 01, 2 = 10, 3 = 11
 // LED (RG)
 // LED_GREEN = PTD5
 // LED_RED = PTE29
@@ -72,7 +71,7 @@ int main(void)
   led_red_init();
   b_sw1_init();
   b_sw2_init();
-  state = 0;
+  uint8_t state  = 0; //0 = 00, 1 = 01, 2 = 10, 3 = 11
   bool l1 = false, l2 = false;
 
   while (1) {
