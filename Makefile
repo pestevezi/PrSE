@@ -1,45 +1,26 @@
-#TOOLCHAIN=~/toolchain/gcc-arm-none-eabi-4_9-2014q4/bin
-#PREFIX=$(TOOLCHAIN)/arm-none-eabi-
 PREFIX=arm-none-eabi-
 
 ARCHFLAGS=-mthumb -mcpu=cortex-m0plus
 COMMONFLAGS=-g3 -Og -Wall -Werror $(ARCHFLAGS)
 
-CFLAGS=-I./includes $(COMMONFLAGS)
+CFLAGS=-I./includes -I./drivers $(COMMONFLAGS)
 LDFLAGS=$(COMMONFLAGS) --specs=nano.specs -Wl,--gc-sections,-Map,$(TARGET).map,-Tlink.ld
 LDLIBS=
 
 CC=$(PREFIX)gcc
 LD=$(PREFIX)gcc
-OBJCOPY=$(PREFIX)objcopy
-SIZE=$(PREFIX)size
 RM=rm -f
 
-TARGET=main
 
 SRC=$(wildcard *.c)
-OBJ=$(patsubst %.c, %.o, $(SRC))
+SRC_LED=$(filter-out hello_world.c, $(filter-out pin_mux_hello.c , $(SRC)))
+SRC_HELLO=$(filter-out led_blinky.c, $(filter-out pin_mux.c , $(SRC)))
 
-all: build size
-build: elf srec bin
-elf: $(TARGET).elf
-srec: $(TARGET).srec
-bin: $(TARGET).bin
+OBJ_LED=$(patsubst %.c, %.o, $(SRC_LED))
+OBJ_HELLO=$(patsubst %.c, %.o, $(SRC_HELLO))
 
-clean:
-	$(RM) $(TARGET).srec $(TARGET).elf $(TARGET).bin $(TARGET).map $(OBJ)
+led_blinky.elf: $(OBJ_LED)
+	$(LD) $(LDFLAGS) $(OBJ_LED) $(LDLIBS) -o $@
 
-$(TARGET).elf: $(OBJ)
-	$(LD) $(LDFLAGS) $(OBJ) $(LDLIBS) -o $@
-
-%.srec: %.elf
-	$(OBJCOPY) -O srec $< $@
-
-%.bin: %.elf
-	    $(OBJCOPY) -O binary $< $@
-
-size:
-	$(SIZE) $(TARGET).elf
-
-flash: all
-	openocd -f openocd.cfg -c "program $(TARGET).elf verify reset exit"
+hello_world.elf: $(OBJ_HELLO)
+	$(LD) $(LDFLAGS) $(OBJ_HELLO) $(LDLIBS) -o $@
