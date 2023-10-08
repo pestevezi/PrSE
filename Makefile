@@ -24,3 +24,9 @@ led_blinky.elf: $(OBJ_LED)
 
 hello_world.elf: $(OBJ_HELLO)
 	$(LD) $(LDFLAGS) $(OBJ_HELLO) $(LDLIBS) -o $@
+
+flash led_blinky.elf : led_blinky.elf
+	openocd -f openocd.cfg -c "program led_blinky.elf verify reset exit"
+
+flash hello_world.elf : hello_world.elf
+	openocd -f openocd.cfg -c "program hello_world.elf verify reset exit"
