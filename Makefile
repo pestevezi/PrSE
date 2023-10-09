@@ -19,14 +19,19 @@ SRC_HELLO=$(filter-out led_blinky.c, $(filter-out pin_mux.c , $(SRC)))
 OBJ_LED=$(patsubst %.c, %.o, $(SRC_LED))
 OBJ_HELLO=$(patsubst %.c, %.o, $(SRC_HELLO))
 
+
 led_blinky.elf: $(OBJ_LED)
 	$(LD) $(LDFLAGS) $(OBJ_LED) $(LDLIBS) -o $@
 
 hello_world.elf: $(OBJ_HELLO)
 	$(LD) $(LDFLAGS) $(OBJ_HELLO) $(LDLIBS) -o $@
 
-flash led_blinky.elf : led_blinky.elf
+flash_led : led_blinky.elf
 	openocd -f openocd.cfg -c "program led_blinky.elf verify reset exit"
 
-flash hello_world.elf : hello_world.elf
+flash_hello : hello_world.elf
 	openocd -f openocd.cfg -c "program hello_world.elf verify reset exit"
+
+clean :
+	rm *.o 
+	rm *.elf
