@@ -1,8 +1,30 @@
 #include "MKL46Z4.h"
 #include <stdbool.h>
+
 // LED (RG)
 // LED_GREEN = PTD5
 // LED_RED = PTE29
+
+uint8_t state  = 0; //0 = 00, 1 = 01, 2 = 10, 3 = 11
+bool l1 = false, l2 = false;  
+
+void state_machine(bool a);
+
+void PORTDIntHandler(void){
+
+  bool a = PORTC->PCR[3]>>24, b = PORTC->PCR[12]>>24;
+
+  if (a) {
+    state_machine(0);    
+  } else {
+    if(b)
+      state_machine(1);
+  }
+
+  PORTC->PCR[12] |= PORT_PCR_ISF(1);
+  PORTC->PCR[3] |= PORT_PCR_ISF(1);
+
+}
 
 void delay(void)
 {
@@ -27,7 +49,7 @@ void led_green_toggle()
 }
 
 // LED_RED = PTE29
-void led_red_init()
+void led_red_init(void)
 {
   SIM->COPC = 0;
   SIM->SCGC5 |= SIM_SCGC5_PORTE_MASK;
@@ -37,11 +59,17 @@ void led_red_init()
 }
 
 void b_sw1_init(){
+
+
   SIM->SCGC5 |= SIM_SCGC5_PORTC_MASK;
 	PORTC->PCR[3] |= PORT_PCR_MUX(1);
   PORTC->PCR[3] |= PORT_PCR_PE(1);
   PORTC->PCR[3] |= PORT_PCR_PS(1);
+  PORTC->PCR[3] |= PORT_PCR_IRQC(10);
   GPIOC->PDDR &= ~(1 << 3);
+
+  NVIC_EnableIRQ(PORTC_PORTD_IRQn);
+
 }
 
 void b_sw2_init(){
@@ -49,6 +77,8 @@ void b_sw2_init(){
   PORTC->PCR[12] |= PORT_PCR_MUX(1);
   PORTC->PCR[12] |= PORT_PCR_PE(1);
   PORTC->PCR[12] |= PORT_PCR_PS(1);
+  PORTC->PCR[12] |= PORT_PCR_ISF(1);
+  PORTC->PCR[12] |= PORT_PCR_IRQC(0b1010);
   GPIOC->PDDR &= ~(1 << 12);
 }
 
@@ -65,46 +95,46 @@ bool sw2_check(){
     return ((( (GPIOC->PDIR) >> 12) % 2) == 0 );
 }
 
-int main(void)
-{
-  led_green_init();
-  led_red_init();
-  b_sw1_init();
-  b_sw2_init();
-  uint8_t state  = 0; //0 = 00, 1 = 01, 2 = 10, 3 = 11
-  bool l1 = false, l2 = false;
-
-  while (1) {
-    switch (state){
-      case 0: //0 = 00, 1 = 01, 2 = 10, 3 = 11
-
+  void lights(bool a){
+    switch (a){
+      case 0:
         if(l1)led_green_toggle();
         if(!l2)led_red_toggle();
         l1 = false;
-        l2 = true;        
-
-        if ( sw1_check() ){
-          state = 1;
-          while(sw1_check());          
-        }
-        if ( sw2_check() ){
-          state = 2;
-          while(sw2_check());          
-        }
+        l2 = true;   
         break;
       case 1:
-        if(l1)led_green_toggle();
-        if(!l2)led_red_toggle();
-        l1 = false;
-        l2 = true;        
+        if(!l1)led_green_toggle();
+        if(l2)led_red_toggle();
+        l1 = true;
+        l2 = false;  
+        break;
+    }
+  }
 
-        if ( sw1_check() ){
-          state = 0;
-          while(sw1_check());          
+
+void state_machine(bool a){
+  //////////////////
+  a =a;
+    switch (state){
+      case 0: //0 = 00, 1 = 01, 2 = 10, 3 = 11     
+
+        if ( !a ){
+          state = 1;
         }
-        if ( sw2_check() ){
+        if ( a ){
+          state = 2;
+        }
+        lights(0);
+        break;
+      case 1:
+        if ( !a ){
+          state = 0;
+          lights(0);
+        }
+        if ( a ){
           state = 3;
-          while(sw2_check());
+          lights(1);
         }
         break;
       case 2: 
@@ -113,13 +143,13 @@ int main(void)
         l1 = false;
         l2 = true;        
 
-        if ( sw1_check() ){
+        if ( !a ){
           state = 3;
-          while( sw1_check() );
+          lights(1);
         }
-        if ( sw2_check() ){
+        if ( a ){
           state = 0;
-          while( sw2_check() );          
+          lights(0);
         }
         break;
       case 3: 
@@ -128,16 +158,30 @@ int main(void)
         l1 = true;
         l2 = false;        
 
-        if ( sw1_check() ){
+        if ( !a ){
           state = 2;
-          while(sw1_check());          
         }
-        if ( sw2_check() ){
+        if ( a ){
           state = 1;
-          while(sw2_check());          
         }
+        lights(0);  
         break;
     }
+
+  }
+
+
+int main(void)
+{
+  led_green_init();
+  led_red_init();
+  b_sw1_init();
+  b_sw2_init();
+
+  lights(0);
+
+  while(1){
+    
   }
 
   return 0;
