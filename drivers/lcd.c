@@ -4,6 +4,10 @@
 
 #include "MKL46Z4.h"
 #include "lcd.h"
+#include <stdbool.h>
+
+
+extern int my_div(int a, int b);
 
 const static uint8_t LCD_Frontplane_Pin[LCD_NUM_FRONTPLANE_PINS] = {
   LCD_FRONTPLANE0, LCD_FRONTPLANE1, LCD_FRONTPLANE2, LCD_FRONTPLANE3,
@@ -15,6 +19,8 @@ const static uint8_t LCD_Backplane_Pin[LCD_NUM_BACKPLANE_PINS] = {
   LCD_BACKPLANE0, LCD_BACKPLANE1, LCD_BACKPLANE2, LCD_BACKPLANE3
 };
 */
+
+int divide(int a, int b);
 
 void lcd_ini(void)
 {
@@ -324,14 +330,15 @@ void lcd_set(uint8_t value, uint8_t digit)
 //
 void lcd_display_dec(uint16_t value)
 {
+
   if (value > 9999) {
     //Display "Err" if value is greater than 4 digits
     lcd_display_error(0x10);
   } else {
-    lcd_set(value/1000, 1);
-    lcd_set((value - (value/1000)*1000)/100, 2);
-    lcd_set((value - (value/100)*100)/10, 3);
-    lcd_set(value - (value/10)*10, 4);
+    lcd_set( divide(value,1000), 1);
+    lcd_set(  divide(value - (divide(value,1000))*1000,100), 2);
+    lcd_set( divide((value - (value/100)*100),10), 3);
+    lcd_set(value - divide(value,10)*10, 4);
   }
 }
 
@@ -385,4 +392,33 @@ void lcd_display_error(uint8_t errorNum)
     LCD->WF8B[LCD_FRONTPLANE6] = LCD_CLEAR;
     LCD->WF8B[LCD_FRONTPLANE7] = LCD_CLEAR;
   }
+}
+
+
+int divide(int a, int b){
+
+  bool asm_s = true;
+
+  if (!asm_s){
+    int c = 0;
+
+    asm(
+      ".syntax unified\n\t"
+
+      "start:                           \n"
+      "subs %[DIVO], %[DIVO], %[DIVI]   \n"
+      "bmi end                          \n"
+      "adds %[COCI], %[COCI], #1        \n"
+      "b start                          \n"
+      "end:"
+
+      : [DIVO] "+l" (a), [COCI] "+l" (c)
+      : [DIVI] "l" (b)
+    );
+
+    return c;
+  }
+  else
+   return my_div(a, b);
+
 }
