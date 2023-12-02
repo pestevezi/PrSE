@@ -1,61 +1,19 @@
-#include "MKL46Z4.h"
 #include <stdbool.h>
+#include "MKL46Z4.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "lcd.h"
+#include "queue.h"
+#include <string.h>
 
-// LED (RG)
-// LED_GREEN = PTD5
-// LED_RED = PTE29
+int count; int length; char sent; char rec; char cadena[20] = "Esta es la cadena";
+QueueHandle_t xQueue1; int temp;
 
-uint8_t state  = 0; //0 = 00, 1 = 01, 2 = 10, 3 = 11
-bool l1 = false, l2 = false;  
-
-void state_machine(bool a);
-
-void PORTDIntHandler(void){
-
-  bool a = PORTC->PCR[3]>>24, b = PORTC->PCR[12]>>24;
-
-  if (a) {
-    state_machine(0);    
-  } else {
-    if(b)
-      state_machine(1);
-  }
-
-  PORTC->PCR[12] |= PORT_PCR_ISF(1);
-  PORTC->PCR[3] |= PORT_PCR_ISF(1);
-
-}
-
-void delay(void)
+void irclk_ini()
 {
-  volatile int i;
+  MCG->C1 = MCG_C1_IRCLKEN(1) | MCG_C1_IREFSTEN(1);
+  MCG->C2 = MCG_C2_IRCS(0); //0 32KHZ internal reference clock; 1= 4MHz irc
 
-  for (i = 0; i < 1000000; i++);
-}
-
-// LED_GREEN = PTD5
-void led_green_init()
-{
-  SIM->COPC = 0;
-  SIM->SCGC5 |= SIM_SCGC5_PORTD_MASK;
-  PORTD->PCR[5] = PORT_PCR_MUX(1);
-  GPIOD->PDDR |= (1 << 5);
-  GPIOD->PSOR = (1 << 5);
-}
-
-void led_green_toggle()
-{
-  GPIOD->PTOR = (1 << 5);
-}
-
-// LED_RED = PTE29
-void led_red_init(void)
-{
-  SIM->COPC = 0;
-  SIM->SCGC5 |= SIM_SCGC5_PORTE_MASK;
-  PORTE->PCR[29] = PORT_PCR_MUX(1);
-  GPIOE->PDDR |= (1 << 29);
-  GPIOE->PSOR = (1 << 29);
 }
 
 void b_sw1_init(){
@@ -82,109 +40,132 @@ void b_sw2_init(){
   GPIOC->PDDR &= ~(1 << 12);
 }
 
+void led_green_init()
+{
+	SIM_COPC = 0;
+	SIM_SCGC5 |= SIM_SCGC5_PORTD_MASK;
+	PORTD_PCR5 = PORT_PCR_MUX(1);
+	GPIOD_PDDR |= (1 << 5);
+	GPIOD_PSOR = (1 << 5);
+}
+
+void led_green_toggle()
+{
+	GPIOD_PTOR = (1 << 5);
+}
+
+void led_red_init()
+{
+	SIM_COPC = 0;
+	SIM_SCGC5 |= SIM_SCGC5_PORTE_MASK;
+	PORTE_PCR29 = PORT_PCR_MUX(1);
+	GPIOE_PDDR |= (1 << 29);
+	GPIOE_PSOR = (1 << 29);
+}
+
 void led_red_toggle(void)
 {
-  GPIOE->PTOR = (1 << 29);
+	GPIOE_PTOR = (1 << 29);
 }
 
-bool sw1_check(){
-  return ((( (GPIOC->PDIR) >> 3) % 2) == 0 );
-}
+void PORTDIntHandler(void){
 
-bool sw2_check(){
-    return ((( (GPIOC->PDIR) >> 12) % 2) == 0 );
-}
+  bool a = PORTC->PCR[3]>>24, b = PORTC->PCR[12]>>24;
 
-  void lights(bool a){
-    switch (a){
-      case 0:
-        if(l1)led_green_toggle();
-        if(!l2)led_red_toggle();
-        l1 = false;
-        l2 = true;   
-        break;
-      case 1:
-        if(!l1)led_green_toggle();
-        if(l2)led_red_toggle();
-        l1 = true;
-        l2 = false;  
-        break;
-    }
-  }
+  if (a){
 
-
-void state_machine(bool a){
-  //////////////////
-  a =a;
-    switch (state){
-      case 0: //0 = 00, 1 = 01, 2 = 10, 3 = 11     
-
-        if ( !a ){
-          state = 1;
-        }
-        if ( a ){
-          state = 2;
-        }
-        lights(0);
-        break;
-      case 1:
-        if ( !a ){
-          state = 0;
-          lights(0);
-        }
-        if ( a ){
-          state = 3;
-          lights(1);
-        }
-        break;
-      case 2: 
-        if(l1)led_green_toggle();
-        if(!l2)led_red_toggle();
-        l1 = false;
-        l2 = true;        
-
-        if ( !a ){
-          state = 3;
-          lights(1);
-        }
-        if ( a ){
-          state = 0;
-          lights(0);
-        }
-        break;
-      case 3: 
-        if(!l1)led_green_toggle();
-        if(l2)led_red_toggle();
-        l1 = true;
-        l2 = false;        
-
-        if ( !a ){
-          state = 2;
-        }
-        if ( a ){
-          state = 1;
-        }
-        lights(0);  
-        break;
-    }
+  } else {
 
   }
+  lcd_display_dec(999);
+
+  PORTC->PCR[12] |= PORT_PCR_ISF(1);
+  PORTC->PCR[3] |= PORT_PCR_ISF(1);
+
+}
+
+void productor(void *pvParameters)
+{
+    for (;;) {
+        led_green_toggle();
+
+        if (count < length){
+	        sent = cadena[count]; count++;
+	        const void * ttt = (void *)&sent; 
+	//    	lcd_display_dec(count);
+			
+	//		QueueHandle_t q = *((QueueHandle_t *)pvParameters);
 
 
+	    	if( xQueue1 != 0 ){
+		    	xQueueSendToBack(xQueue1, ttt, portMAX_DELAY);
+	    	}
+
+    	}
+
+
+		temp = uxQueueMessagesWaiting(xQueue1);
+		lcd_display_dec(temp);
+
+        vTaskDelay(200/portTICK_RATE_MS);
+    }
+}
+
+void consumidor(void *pvParameters)
+{
+    vTaskDelay(100/portTICK_RATE_MS);
+    for (;;) {
+        led_red_toggle();
+        xQueueReceive(xQueue1, &rec, portMAX_DELAY);
+//    	lcd_display_dec(rec);
+    }
+}
+/*
+void counter(void *pvParameters)
+{
+	for(;;){
+	    vTaskDelay(400/portTICK_RATE_MS);		
+    	lcd_display_dec(temp);
+	}
+}
+*/
 int main(void)
 {
-  led_green_init();
-  led_red_init();
-  b_sw1_init();
-  b_sw2_init();
 
-  lights(0);
+	count = 0; temp = 0;
+	length = strlen(cadena);
 
-  while(1){
-    
-  }
+	irclk_ini(); // Enable internal ref clk to use by LCD
+  	lcd_ini();
 
-  return 0;
+	led_green_init();
+	led_red_init();
+
+//	b_sw1_init();
+//	b_sw2_init();
+
+//	lcd_display_dec(count);
+	xQueue1 = xQueueCreate(20, sizeof(char));
+
+
+	/* create green led task */
+	xTaskCreate(productor, (signed char *)"productor", 
+		configMINIMAL_STACK_SIZE, (void *)NULL, 2, NULL);
+
+	/* create red led task */
+	xTaskCreate(consumidor, (signed char *)"consumidor", 
+		configMINIMAL_STACK_SIZE, (void *)NULL, 1, NULL);
+	
+//	xTaskCreate(counter, (signed char *)"counter", 
+//		configMINIMAL_STACK_SIZE, (void *)NULL, 3, NULL);
+
+	/* start the scheduler */
+	vTaskStartScheduler();
+
+
+	/* should never reach here! */
+	for (;;);
+
+	return 0;
 }
- 
 

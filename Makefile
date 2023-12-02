@@ -1,13 +1,12 @@
-#TOOLCHAIN=~/toolchain/gcc-arm-none-eabi-4_9-2014q4/bin
-#PREFIX=$(TOOLCHAIN)/arm-none-eabi-
+TOOLCHAIN=~/toolchain/gcc-arm-none-eabi-4_9-2014q4/bin
 PREFIX=arm-none-eabi-
 
-ARCHFLAGS=-mthumb -mcpu=cortex-m0plus
-COMMONFLAGS=-g3 -Og -Wall -Werror $(ARCHFLAGS)
+FREERTOS=freertos
 
-CFLAGS=-I./includes $(COMMONFLAGS)
-LDFLAGS=$(COMMONFLAGS) --specs=nano.specs -Wl,--gc-sections,-Map,$(TARGET).map,-Tlink.ld
-LDLIBS=
+ARCHFLAGS=-mthumb -mcpu=cortex-m0plus
+CFLAGS=-I. -I./includes/ -I./${FREERTOS}/include \
+	   -I./${FREERTOS}/portable/GCC/ARM_CM0 -O0 -g
+LDFLAGS=--specs=nano.specs -Wl,--gc-sections,-Map,$(TARGET).map,-Tlink.ld
 
 CC=$(PREFIX)gcc
 LD=$(PREFIX)gcc
@@ -17,7 +16,9 @@ RM=rm -f
 
 TARGET=main
 
-SRC=$(wildcard *.c)
+SRC=main.c startup.c ${FREERTOS}/list.c ${FREERTOS}/queue.c \
+	${FREERTOS}/tasks.c ${FREERTOS}/portable/MemMang/heap_2.c \
+	${FREERTOS}/portable/GCC/ARM_CM0/port.c lcd.c
 OBJ=$(patsubst %.c, %.o, $(SRC))
 
 all: build size
@@ -29,17 +30,17 @@ bin: $(TARGET).bin
 clean:
 	$(RM) $(TARGET).srec $(TARGET).elf $(TARGET).bin $(TARGET).map $(OBJ)
 
+%.o: %.c
+	$(CC) -c $(ARCHFLAGS) $(CFLAGS) -o $@ $<
+
 $(TARGET).elf: $(OBJ)
-	$(LD) $(LDFLAGS) $(OBJ) $(LDLIBS) -o $@
+	$(LD) $(LDFLAGS) -o $@ $(OBJ) -mthumb -mcpu=cortex-m0plus 
 
 %.srec: %.elf
 	$(OBJCOPY) -O srec $< $@
 
 %.bin: %.elf
-	    $(OBJCOPY) -O binary $< $@
+	$(OBJCOPY) -O binary $< $@
 
 size:
 	$(SIZE) $(TARGET).elf
-
-flash: all
-	openocd -f openocd.cfg -c "program $(TARGET).elf verify reset exit"
