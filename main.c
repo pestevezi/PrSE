@@ -6,8 +6,9 @@
 #include "queue.h"
 #include <string.h>
 
-int count; int length; char sent; char rec; char cadena[20] = "Esta es la cadena";
-QueueHandle_t xQueue1; int temp;
+int count; int length; char sent; char rec; int temp;
+char cadena[20] = "Esta es la cadena";
+QueueHandle_t xQueue1; TaskHandle_t xTaskP; TaskHandle_t xTaskC;
 
 void irclk_ini()
 {
@@ -17,8 +18,6 @@ void irclk_ini()
 }
 
 void b_sw1_init(){
-
-
   SIM->SCGC5 |= SIM_SCGC5_PORTC_MASK;
   PORTC->PCR[3] |= PORT_PCR_MUX(1);
   PORTC->PCR[3] |= PORT_PCR_PE(1);
@@ -73,11 +72,15 @@ void PORTDIntHandler(void){
   bool a = PORTC->PCR[3]>>24, b = PORTC->PCR[12]>>24;
 
   if (a){
-
+	vTaskPrioritySet(xTaskP, tskIDLE_PRIORITY);
+	vTaskPrioritySet(xTaskC, tskIDLE_PRIORITY+1);
   } else {
-
+	vTaskPrioritySet(xTaskP, tskIDLE_PRIORITY+1);
+	vTaskPrioritySet(xTaskC, tskIDLE_PRIORITY);
   }
-  lcd_display_dec(999);
+
+	count = 0;
+//	lcd_display_dec(999);
 
   PORTC->PCR[12] |= PORT_PCR_ISF(1);
   PORTC->PCR[3] |= PORT_PCR_ISF(1);
@@ -113,11 +116,12 @@ void productor(void *pvParameters)
 
 void consumidor(void *pvParameters)
 {
-    vTaskDelay(100/portTICK_RATE_MS);
+//    vTaskDelay(100/portTICK_RATE_MS);
     for (;;) {
         led_red_toggle();
         xQueueReceive(xQueue1, &rec, portMAX_DELAY);
 //    	lcd_display_dec(rec);
+        vTaskDelay(200/portTICK_RATE_MS);
     }
 }
 /*
@@ -141,8 +145,8 @@ int main(void)
 	led_green_init();
 	led_red_init();
 
-//	b_sw1_init();
-//	b_sw2_init();
+	b_sw1_init();
+	b_sw2_init();
 
 //	lcd_display_dec(count);
 	xQueue1 = xQueueCreate(20, sizeof(char));
@@ -150,11 +154,11 @@ int main(void)
 
 	/* create green led task */
 	xTaskCreate(productor, (signed char *)"productor", 
-		configMINIMAL_STACK_SIZE, (void *)NULL, 2, NULL);
+		configMINIMAL_STACK_SIZE, (void *)NULL, tskIDLE_PRIORITY, &xTaskP);
 
 	/* create red led task */
 	xTaskCreate(consumidor, (signed char *)"consumidor", 
-		configMINIMAL_STACK_SIZE, (void *)NULL, 1, NULL);
+		configMINIMAL_STACK_SIZE, (void *)NULL, tskIDLE_PRIORITY, &xTaskC);
 	
 //	xTaskCreate(counter, (signed char *)"counter", 
 //		configMINIMAL_STACK_SIZE, (void *)NULL, 3, NULL);
