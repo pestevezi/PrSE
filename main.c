@@ -67,20 +67,19 @@ void led_red_toggle(void)
 	GPIOE_PTOR = (1 << 29);
 }
 
-void PORTDIntHandler(void){
+void PORTDIntHandler(void){	//// BOTONES
 
   bool a = PORTC->PCR[3]>>24, b = PORTC->PCR[12]>>24;
 
-  if (a){
+  if (a){		// BOTÓN DERECHO AÑADE PRIORIDAD AL PRODUCTOR
 	vTaskPrioritySet(xTaskP, tskIDLE_PRIORITY);
 	vTaskPrioritySet(xTaskC, tskIDLE_PRIORITY+1);
-  } else {
+  } else {		// BOTÓN IZQUIERDO AÑADE PRIORIDAD AL CONSUMIDOR
 	vTaskPrioritySet(xTaskP, tskIDLE_PRIORITY+1);
 	vTaskPrioritySet(xTaskC, tskIDLE_PRIORITY);
   }
 
-	count = 0;
-//	lcd_display_dec(999);
+	count = 0;	// REINICIA LAS CUENTA
 
   PORTC->PCR[12] |= PORT_PCR_ISF(1);
   PORTC->PCR[3] |= PORT_PCR_ISF(1);
@@ -95,9 +94,6 @@ void productor(void *pvParameters)
         if (count < length){
 	        sent = cadena[count]; count++;
 	        const void * ttt = (void *)&sent; 
-	//    	lcd_display_dec(count);
-			
-	//		QueueHandle_t q = *((QueueHandle_t *)pvParameters);
 
 
 	    	if( xQueue1 != 0 ){
@@ -120,19 +116,11 @@ void consumidor(void *pvParameters)
     for (;;) {
         led_red_toggle();
         xQueueReceive(xQueue1, &rec, portMAX_DELAY);
-//    	lcd_display_dec(rec);
+    	lcd_display_dec(rec);
         vTaskDelay(200/portTICK_RATE_MS);
     }
 }
-/*
-void counter(void *pvParameters)
-{
-	for(;;){
-	    vTaskDelay(400/portTICK_RATE_MS);		
-    	lcd_display_dec(temp);
-	}
-}
-*/
+
 int main(void)
 {
 
@@ -148,7 +136,6 @@ int main(void)
 	b_sw1_init();
 	b_sw2_init();
 
-//	lcd_display_dec(count);
 	xQueue1 = xQueueCreate(20, sizeof(char));
 
 
