@@ -11,17 +11,27 @@
 
 // Enable IRCLK (Internal Reference Clock)
 // see Chapter 24 in MCU doc
-void irclk_ini()
-{
-  MCG->C1 = MCG_C1_IRCLKEN(1) | MCG_C1_IREFSTEN(1);
-  MCG->C2 = MCG_C2_IRCS(0); //0 32KHZ internal reference clock; 1= 4MHz irc
-}
+
+int minute, second;
 
 void delay(void)
 {
   volatile int i;
 
   for (i = 0; i < 1000000; i++);
+}
+
+void countdown(){
+    if (second > 0){
+    second--;
+  } else {
+    if (minute > 0){
+      minute--;
+      second = 59;
+    }
+    else
+      ;
+  }
 }
 
 // RIGHT_SWITCH (SW1) = PTC3
@@ -108,41 +118,80 @@ void leds_ini()
   GPIOE->PSOR = (1 << 29);
 }
 
-// Hit condition: (else, it is a miss)
-// - Left switch matches red light
-// - Right switch matches green light
+void irclk_ini()
+{
+  MCG->C1 = MCG_C1_IRCLKEN(1) | MCG_C1_IREFSTEN(1);
+  MCG->C2 = MCG_C2_IRCS(0); //0 32KHZ internal reference clock; 1= 4MHz irc
+}
+
+void init_tpm(){
+
+  MCG->C2 &= MCG_C2_IRCS(0);
+
+  SIM->SCGC6 |= SIM_SCGC6_TPM0(1); 
+  SIM->SOPT2 |= SIM_SOPT2_TPMSRC(3);
+
+  TPM0->MOD=0x9FFFF0;// TPM0->CNT=0;  
+  TPM0->SC &= TPM_SC_PS(0);
+  TPM0->SC |= TPM_SC_TOIE(1);
+  TPM0->SC |= TPM_SC_CMOD(1);
+  //TPM0->SC &= TPM_SC_CPWMS(0);
+  //TPM0->CONTROLS[0].CnSC  |= TPM_CnSC_CHIE(1);
+  //TPM0->SC |= TPM_SC_TOF(1);
+
+  //SIM->SOPT2 = 0x03000000;
+
+  //MCG->C1 |= 0x2;
+
+  NVIC_EnableIRQ(TPM0_IRQn);
+}
+
+void FTM0IntHandler(void){
+  led_red_toggle();
+  countdown();
+  TPM0->SC |= TPM_SC_TOF(1);
+  TPM0->CNT=0;
+}
+
+void init_pit(){
+  SIM->SCGC6 |= SIM_SCGC6_PIT(1);
+  PIT->MCR &= PIT_MCR_MDIS(0);
+
+  PIT->CHANNEL[0].LDVAL = 0x9FFFF0;//PIT_LDVAL_TSV(10900000);
+  PIT->CHANNEL[0].TCTRL &= PIT_TCTRL_CHN(0);
+  PIT->CHANNEL[0].TCTRL |= PIT_TCTRL_TEN(1);
+  PIT->CHANNEL[0].TCTRL |= PIT_TCTRL_TIE(1);
+//  PIT->CHANNEL[0].TFLG |= PIT_TFLG_TIF(1);
+  NVIC_SetPriority(PIT_IRQn, 3); 
+  NVIC_ClearPendingIRQ(PIT_IRQn);
+  NVIC_EnableIRQ(PIT_IRQn);
+}
+
+void PITIntHandler(void) {
+  led_green_toggle(); 
+
+  countdown();
+
+  PIT->CHANNEL[0].TFLG |= PIT_TFLG_TIF(1); //clear the flag
+}
+
 
 int main(void)
 {
+  leds_ini();
   irclk_ini(); // Enable internal ref clk to use by LCD
-
   lcd_ini();
-  lcd_display_dec(666);
 
-  // 'Random' sequence :-)
-  volatile unsigned int sequence = 0x32B14D98,
-    index = 0;
-
-  while (index < 32) {
-    if (sequence & (1 << index)) { //odd
-      //
-      // Switch on green led
-      // [...]
-      //
-    } else { //even
-      //
-      // Switch on red led
-      // [...]
-      //
-    }
-    // [...]
-  }
-
-  // Stop game and show blinking final result in LCD: hits:misses
-  // [...]
-  //
+    //
+  init_tpm();
+  init_pit();
+    //
+  
+  minute = 1; second = 5;
 
   while (1) {
+    lcd_display_time(minute, second);
+    //lcd_display_dec(TPM0->STATUS);
   }
 
   return 0;

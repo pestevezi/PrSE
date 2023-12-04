@@ -7,8 +7,6 @@
 #include <stdbool.h>
 
 
-extern int my_div(int a, int b);
-
 const static uint8_t LCD_Frontplane_Pin[LCD_NUM_FRONTPLANE_PINS] = {
   LCD_FRONTPLANE0, LCD_FRONTPLANE1, LCD_FRONTPLANE2, LCD_FRONTPLANE3,
   LCD_FRONTPLANE4, LCD_FRONTPLANE5, LCD_FRONTPLANE6, LCD_FRONTPLANE7
@@ -337,7 +335,7 @@ void lcd_display_dec(uint16_t value)
   } else {
     lcd_set( divide(value,1000), 1);
     lcd_set(  divide(value - (divide(value,1000))*1000,100), 2);
-    lcd_set( divide((value - (value/100)*100),10), 3);
+    lcd_set( divide((value - (divide(value,100))*100),10), 3);
     lcd_set(value - divide(value,10)*10, 4);
   }
 }
@@ -397,9 +395,6 @@ void lcd_display_error(uint8_t errorNum)
 
 int divide(int a, int b){
 
-  bool asm_s = true;
-
-  if (!asm_s){
     int c = 0;
 
     asm(
@@ -417,8 +412,5 @@ int divide(int a, int b){
     );
 
     return c;
-  }
-  else
-   return my_div(a, b);
 
 }

@@ -18,7 +18,7 @@ RM=rm -f
 TARGET=main
 
 SRC=$(wildcard *.c drivers/*.c)
-OBJ=$(patsubst %.c, %.o, $(SRC))
+OBJ=$(patsubst %.c, %.o, $(SRC)) #divide.o
 
 all: build size
 build: elf srec bin
@@ -30,6 +30,7 @@ clean:
 	$(RM) $(TARGET).srec $(TARGET).elf $(TARGET).bin $(TARGET).map $(OBJ)
 
 $(TARGET).elf: $(OBJ)
+#	arm-none-eabi-as -mthumb -mcpu=cortex-m0plus -o divide.o divide.s
 	$(LD) $(LDFLAGS) $(OBJ) $(LDLIBS) -o $@
 
 %.srec: %.elf
