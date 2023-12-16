@@ -13,10 +13,9 @@
 // Enable IRCLK (Internal Reference Clock)
 // see Chapter 24 in MCU doc
 
-int minute, second, state;
-bool ini = true;
-
-void menu_state_machine(int a);
+int minute, second, state, timeon = 400;
+const int total = 400;
+bool ini = true, on = true;
 
 void delay(void)
 {
@@ -25,21 +24,6 @@ void delay(void)
   for (i = 0; i < 1000000; i++);
 }
 
-void countdown(){
-
-  if (!ini){
-    if (second > 0){
-      second--;
-    } else {
-      if (minute > 0){
-        minute--;
-        second = 59;
-      }
-      else
-        ;
-    }    
-  }
-}
 
 void b_sw1_init(){
 
@@ -138,104 +122,60 @@ void irclk_ini()
 
 void init_tpm(){
 
-//  MCG->C2 &= MCG_C2_IRCS(0);
-
   SIM->SCGC6 |= SIM_SCGC6_TPM0(1); 
   SIM->SOPT2 |= SIM_SOPT2_TPMSRC(3);
 
-  TPM0->MOD=32000;// TPM0->CNT=0;  
+//  TPM0->MOD=32000;
+  TPM0->MOD=total;
+  TPM0->CNT=0;
   TPM0->SC &= TPM_SC_PS(0);
   TPM0->SC |= TPM_SC_TOIE(1);
   TPM0->SC |= TPM_SC_CMOD(1);
-  //TPM0->SC &= TPM_SC_CPWMS(0);
-  //TPM0->CONTROLS[0].CnSC  |= TPM_CnSC_CHIE(1);
-  //TPM0->SC |= TPM_SC_TOF(1);
-
-  //SIM->SOPT2 = 0x03000000;
-
-  //MCG->C1 |= 0x2;
+/*
+  TPM0->SC |= TPM_SC_CPWMS(1);
+  TPM0->CONTROLS[0].CnV |= TPM_CnV_VAL(10);
+  TPM0->CONTROLS[0].CnSC |= TPM_CnSC_CHIE(1);
+*/
 
   NVIC_EnableIRQ(TPM0_IRQn);
-}
 
-void init_pit(){
-  SIM->SCGC6 |= SIM_SCGC6_PIT(1);
-  PIT->MCR &= PIT_MCR_MDIS(0);
-
-  PIT->CHANNEL[0].LDVAL = 10900000;
-  PIT->CHANNEL[0].TCTRL &= PIT_TCTRL_CHN(0);
-  PIT->CHANNEL[0].TCTRL |= PIT_TCTRL_TEN(1);
-  PIT->CHANNEL[0].TCTRL |= PIT_TCTRL_TIE(1);
-//  PIT->CHANNEL[0].TFLG |= PIT_TFLG_TIF(1);
-  NVIC_SetPriority(PIT_IRQn, 3); 
-  NVIC_ClearPendingIRQ(PIT_IRQn);
-  NVIC_EnableIRQ(PIT_IRQn);
 }
 
 void FTM0IntHandler(void){
   led_red_toggle();
-  countdown();
+
+  if (on){
+    TPM0->MOD=timeon;
+    on = false;
+  }
+  else{
+    TPM0->MOD=total-timeon;
+    on = true;
+  }
   TPM0->SC |= TPM_SC_TOF(1);
-  TPM0->CNT=0;
-}
 
-void PITIntHandler(void) {
-  led_green_toggle(); 
-
-  countdown();
-
-  PIT->CHANNEL[0].TFLG |= PIT_TFLG_TIF(1); //clear the flag
 }
 
 void PORTDIntHandler(void) {
 
   bool a = PORTC->PCR[3]>>24, b = PORTC->PCR[12]>>24;
 
+
+//  TPM0->SC |= TPM_SC_TOF(0);
+
   if (a) {
-    menu_state_machine(0);    
-  } else {
-      if(b)
-        menu_state_machine(1);
+    if(timeon > 0)
+      timeon -= 50;
   }
+  if(b){
+    if (timeon < 400)
+      timeon += 50;
+  }
+
+//  TPM0->SC |= TPM_SC_TOF(1);
 
   PORTC->PCR[12] |= PORT_PCR_ISF(1);
   PORTC->PCR[3] |= PORT_PCR_ISF(1);
-
-}
-
-void menu_state_machine(int a){
-
-  switch(state){      
-    case 0:
-      if (a){                     //// IZQUIERDA PARA AÑADIR UN MINUTO
-        minute++;
-        lcd_display_dec(minute);
-      }
-      else {                      //// DERECHA PARA CONFIRMAR
-        state = 1;              
-        lcd_display_dec(0);
-      }
-    break;
-    case 1:                     
-      if (a){
-        second++;               //// IZQUIERDA PARA AÑADIR UN SEGUNDO
-        lcd_display_dec(second);
-      }
-      else {                    //// DERECHA PARA CONFIRMAR
-        state = 2;
-        lcd_display_hex(0xAABB);
-      }
-    break;
-    case 2: // ELEGIR RELOJ
-      if (a)                    //// IZQUIERDA PARA TPM
-        init_tpm();
-      else 
-        init_pit();             //// DERECHA PARA PIT 
-      state = 3;
-      ini = false;
-    break;
-    default : break;
-  }
 
 }
 
@@ -246,18 +186,15 @@ int main(void)
   lcd_ini();
   b_sw1_init();
   b_sw2_init();
+  init_tpm();
 
-    //
-//  init_tpm();
-//  init_pit();
-    //
-
-  minute = 0; second = 0;
-  lcd_display_time(minute, second);
+  //minute = 0; second = 0;
+  //lcd_display_time(minute, second);
 
   while (1) {
-    if (!ini)
-      lcd_display_time(minute, second);
+//    if (!ini)
+//      lcd_display_time(minute, second);
+    lcd_display_dec(total - timeon);
   }
 
   return 0;
